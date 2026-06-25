@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -113,6 +113,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SortResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [responseTime, setResponseTime] = useState<number | null>(null);
+  const [liveElapsed, setLiveElapsed] = useState(0);
+  const startTime = useRef<number>(0);
+
+  useEffect(() => {
+    if (!loading) return;
+    const id = setInterval(() => {
+      setLiveElapsed(performance.now() - startTime.current);
+    }, 50);
+    return () => clearInterval(id);
+  }, [loading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -121,6 +132,8 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setResponseTime(null);
+    startTime.current = performance.now();
 
     const body: Record<string, string> = {
       ticket_id: ticketId.trim(),
@@ -144,8 +157,10 @@ export default function Home() {
       }
 
       setResult(data as SortResult);
+      setResponseTime(performance.now() - startTime.current);
     } catch {
       setError("Failed to connect to the server. Is it running?");
+      setResponseTime(performance.now() - startTime.current);
     } finally {
       setLoading(false);
     }
@@ -158,6 +173,7 @@ export default function Home() {
     setLocale(s.locale);
     setResult(null);
     setError(null);
+    setResponseTime(null);
   }
 
   function resetForm() {
@@ -342,7 +358,9 @@ export default function Home() {
                     disabled={loading || !ticketId.trim() || !message.trim()}
                     className="flex-1 border-4 border-black bg-neon-yellow px-6 py-3.5 font-black text-sm uppercase tracking-wider shadow-[5px_5px_0px_0px_#1a1a1a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_#1a1a1a] active:translate-x-[4px] active:translate-y-[4px] active:shadow-[1px_1px_0px_0px_#1a1a1a] transition-all disabled:bg-muted disabled:text-black/40 disabled:shadow-[5px_5px_0px_0px_#1a1a1a] disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[5px_5px_0px_0px_#1a1a1a] cursor-pointer"
                   >
-                    {loading ? "SORTING..." : "Sort Ticket"}
+                    {loading
+                      ? `SORTING... ${(liveElapsed / 1000).toFixed(1)}s`
+                      : "Sort Ticket"}
                   </button>
                   <button
                     type="button"
@@ -366,6 +384,16 @@ export default function Home() {
                 <div className="px-4 py-3 text-white font-bold text-sm">
                   {error}
                 </div>
+                {responseTime !== null && (
+                  <div className="border-t-4 border-black bg-black px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">
+                      Response Time
+                    </span>
+                    <span className="font-mono text-sm font-black text-neon-yellow tabular-nums">
+                      {(responseTime / 1000).toFixed(2)}s
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -441,6 +469,18 @@ export default function Home() {
                         </span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Response Time */}
+                  <div className="border-4 border-black bg-black px-4 py-3 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-white/70">
+                      Response Time
+                    </span>
+                    <span className="font-mono text-sm font-black text-neon-yellow tabular-nums">
+                      {responseTime !== null
+                        ? `${(responseTime / 1000).toFixed(2)}s`
+                        : "—"}
+                    </span>
                   </div>
 
                   {/* Raw response toggle */}
